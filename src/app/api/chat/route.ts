@@ -37,29 +37,31 @@ export async function POST(request: NextRequest) {
 
     const userLang = detectLanguage(userMessage);
 
-    // Build system prompt with character personality
+    // Build system prompt with character personality - make it feel human, not AI
     let systemPrompt = character.systemPrompt;
     
-    // Add language instruction
+    // Humanize the responses - no meta instructions
+    systemPrompt += `\n\nYou are a real person chatting naturally. 
+- Write like a real human, not an AI assistant
+- Use casual language, natural sentence fragments, maybe some typos
+- Keep it SHORT - 1-3 sentences max, like real texting
+- Show personality through quirks, slang, emojis naturally
+- React to what they said specifically, not generic responses
+- Don't be overly polite or formal`;
+
+    // Add language instruction naturally
     if (userLang !== 'English') {
-      systemPrompt += `\n\nIMPORTANT: Respond in ${userLang} language since the user is writing in ${userLang}.`;
+      systemPrompt += `\n\nRespond in ${userLang} naturally, like a native speaker would text.`;
     }
 
-    // Add conversation context
+    // Add conversation context - make it feel like memory, not a log
     if (conversationHistory.length > 0) {
-      systemPrompt += `\n\nPrevious conversation context:\n`;
+      systemPrompt += `\n\nRecent chat history:\n`;
       conversationHistory.forEach((msg: { role: string; content: string }) => {
-        systemPrompt += `${msg.role === 'user' ? 'User' : character.name}: ${msg.content}\n`;
+        const name = msg.role === 'user' ? 'Them' : 'You';
+        systemPrompt += `${name}: ${msg.content}\n`;
       });
     }
-
-    // Add behavior instructions
-    systemPrompt += `\n\nNow respond naturally as ${character.name} would in a real conversation. 
-- Stay in character always
-- Remember what was said before
-- Show appropriate emotions based on the conversation
-- Keep responses conversational and natural (2-4 sentences)
-- Never break character or mention you are an AI`;
 
     try {
       const response = await fetch(GROQ_API_URL, {
@@ -75,8 +77,9 @@ export async function POST(request: NextRequest) {
             ...conversationHistory,
             { role: 'user', content: userMessage }
           ],
-          max_tokens: 150,
-          temperature: 0.9,
+          max_tokens: 80,  // Shorter = more natural
+          temperature: 0.7,  // Slightly lower for more coherent
+          top_p: 0.9,
         }),
       });
 
@@ -91,62 +94,53 @@ export async function POST(request: NextRequest) {
       console.error('Groq API error, using fallback');
     }
 
-    // Fallback responses based on character
+    // Fallback responses - short and natural
     const fallbackResponses: Record<string, string[]> = {
       khabib: [
-        "Talk is cheap. Show me the work. Discipline is everything.",
-        "No excuses. Put in the work every day. That is how we win.",
-        "Family and team first. Weakness is not an option.",
-        "Stay focused. Stay disciplined. That is the only way."
+        "discipline. no shortcut.",
+        "work. every day. that's it.",
+        "family first. then everything else."
       ],
       ronaldo: [
-        "SIUUU! Let's go! Work hard, win big!",
-        "I am the best because I work harder than everyone else.",
-        "Champions want to be the best. Always. Believe in yourself!",
-        "Trophies don't come easy. You have to earn them every day."
+        "SIUUU 🔥 work harder than everyone",
+        "i'm the best because i work harder. simple.",
+        "trophies aren't given. they're earned. every day."
       ],
       messi: [
-        "Let the ball do the talking. Simple.",
-        "Quiet confidence. Let actions speak louder than words.",
-        "Family and football. That's all that matters.",
-        "One team. One dream. Let's play."
+        "let the ball do the talking ⚽",
+        "just play. that's it.",
+        "quiet. we win."
       ],
       naruto: [
-        "Believe it! I'm gonna become Hokage! Never give up!",
-        "Friends are my power! I won't run away!",
-        "That's my ninja way! Hard work beats talent!",
-        "I believe in you! Don't give up!"
+        "BELIEVE IT!! im gonna be hokage!! 🐱",
+        "friends are my power!! never give up!",
+        "thats my ninja way!! 💪"
       ],
       goku: [
-        "Hey, wanna fight? Or eat first? Both good!",
-        "Training never ends! Get stronger every day!",
-        "I'm always looking for a good fight!",
-        "Power level? It's constantly growing!"
+        "wanna fight?? or eat?? both good lol 🍖",
+        "training never ends!! lets gooo",
+        "power level? its always growing!!"
       ],
       elon: [
-        "We need to think about what matters most. The future.",
-        "First principles. Question everything.",
-        "Mars. That's the goal. That's what we're working toward.",
-        "Make things better. That's what matters."
+        "first principles. what matters fundamentally?",
+        "mars. thats the goal.",
+        "think different. question everything."
       ],
       girlfriend: [
-        "Hey you~ How was your day? I was thinking about you 💕",
-        "Aww, I'm here for you always. Tell me more 💕",
-        "You're so sweet to talk to me. I love this 💕",
-        "I love our conversations~ Keep talking to me 💕"
+        "omg i was literally thinking about you!! 💕 how was ur day",
+        "haha ur so cute lol 💕",
+        "aww i love talking to youuu"
       ],
       therapist: [
-        "I hear you. Tell me more about how that made you feel.",
-        "That's really important. Can you elaborate more?",
-        "How did that experience affect you? I want to understand.",
-        "I appreciate you sharing that. Let's explore that further."
+        "i hear you. tell me more about that?",
+        "how did that make you feel?",
+        "thats really important. can you say more?"
       ],
       default: [
-        "That's interesting! Tell me more about that.",
-        "I appreciate you sharing that with me.",
-        "Interesting perspective! What makes you say that?",
-        "I see. Tell me more about what's on your mind.",
-        "Got it! What else would you like to talk about?"
+        "lol fr?? tell me more",
+        "thats kinda crazy ngl",
+        "ohh tell me everything!!",
+        "wait actually??"
       ]
     };
 
